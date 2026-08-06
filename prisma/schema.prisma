@@ -7,82 +7,509 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ExperienceLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum LearningGoal {
+  INTERVIEW_PREP
+  COMPETITIVE_PROGRAMMING
+  CORE_FUNDAMENTALS
+  CAREER_SWITCH
+}
+
+enum PreferredLanguage {
+  CPP
+  JAVA
+  PYTHON
+  JAVASCRIPT
+  TYPESCRIPT
+  GO
+  RUST
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum Platform {
+  LEETCODE
+  CODEFORCES
+}
+
+enum PlatformStatus {
+  PENDING
+  ACTIVE
+  ERROR
+  MANUAL_ONLY
+}
+
+enum ProblemState {
+  NOT_STARTED
+  IN_PROGRESS
+  SOLVED
+  REVIEW
+}
+
+enum AttemptOutcome {
+  SOLVED
+  PARTIAL
+  FAILED
+  ABANDONED
+}
+
+enum AttemptSource {
+  IN_APP
+  MANUAL
+  IMPORT
+}
+
+enum RecommendationMode {
+  DAILY
+  LEARN
+  REVIEW
+  CHALLENGE
+}
+
+enum RecommendationLane {
+  LEARN
+  REVIEW
+  EXPLORE
+  CHALLENGE
+}
+
+enum RecommendationEventType {
+  IMPRESSION
+  OPENED
+  STARTED
+  DISMISSED
+  BOOKMARKED
+  COMPLETED
+}
+
+enum PlanStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum PlanItemStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
-  email         String    @unique
-  password      String
-  leetcode      String?
-  codechef      String?
-  hackerrank    String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  submissions   Submission[]
-  problemStats  ProblemStats[]
-  studyPlan     StudyPlan[]
-  dailyProgress DailyProgress[]
-  streak        Int       @default(0)
+
+  accounts             Account[]
+  sessions             Session[]
+  profile              UserProfile?
+  topicPreferences     UserTopicPreference[]
+  topicMastery         UserTopicMastery[]
+  platformIdentities   PlatformIdentity[]
+  attempts             Attempt[]
+  problemStates        UserProblemState[]
+  recommendationRuns   RecommendationRun[]
+  recommendationEvents RecommendationEvent[]
+  studyPlans           StudyPlan[]
+  activity             DailyActivity[]
 }
 
-model Submission {
-  id          String    @id @default(cuid())
-  userId      String
-  platform    String
-  problemId   String
-  problemName String
-  difficulty  String
-  status      String
-  category    String
-  timestamp   DateTime  @default(now())
-  timeTaken   Int?      // Time taken in minutes
-  user        User      @relation(fields: [userId], references: [id])
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
-model ProblemStats {
-  id          String    @id @default(cuid())
-  userId      String
-  platform    String
-  category    String
-  solved      Int       @default(0)
-  attempted   Int       @default(0)
-  timestamp   DateTime  @default(now())
-  user        User      @relation(fields: [userId], references: [id])
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
 }
 
-model StudyPlan {
-  id          String    @id @default(cuid())
-  userId      String
-  title       String
-  description String?
-  startDate   DateTime
-  endDate     DateTime
-  categories  String[]  // Array of DSA categories
-  difficulty  String
-  problems    Problem[]
-  user        User      @relation(fields: [userId], references: [id])
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@unique([token])
+}
+
+model UserProfile {
+  userId                String            @id
+  handle                String            @unique
+  displayName           String
+  bio                   String?           @db.VarChar(240)
+  timezone              String
+  currentRole           String?           @db.VarChar(80)
+  targetRole            String            @db.VarChar(80)
+  experienceLevel       ExperienceLevel
+  learningGoal          LearningGoal
+  weeklyTarget          Int               @default(7)
+  minutesPerDay         Int               @default(45)
+  preferredLanguage     PreferredLanguage @default(PYTHON)
+  targetDate            DateTime?         @db.Date
+  onboardingCompletedAt DateTime?
+  isPublic              Boolean           @default(false)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([onboardingCompletedAt])
+}
+
+model PlatformIdentity {
+  id               String         @id @default(cuid())
+  userId           String
+  platform         Platform
+  handle           String
+  normalizedHandle String
+  status           PlatformStatus @default(PENDING)
+  profileUrl       String
+  lastSyncedAt     DateTime?
+  nextSyncAt       DateTime?
+  lastErrorCode    String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshots PlatformSnapshot[]
+
+  @@unique([userId, platform])
+  @@index([platform, normalizedHandle])
+  @@index([userId])
+  @@index([status, nextSyncAt])
+}
+
+model PlatformSnapshot {
+  id            String   @id @default(cuid())
+  identityId    String
+  capturedAt    DateTime @default(now())
+  totalSolved   Int      @default(0)
+  easySolved    Int?
+  mediumSolved  Int?
+  hardSolved    Int?
+  rating        Int?
+  ranking       Int?
+  reputation    Int?
+  contestRating Int?
+  raw           Json?
+
+  identity PlatformIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId, capturedAt(sort: Desc)])
+}
+
+model Topic {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String? @db.VarChar(240)
+  sortOrder   Int     @default(0)
+
+  problemLinks    ProblemTopic[]
+  preferences     UserTopicPreference[]
+  mastery         UserTopicMastery[]
+  prerequisites   TopicPrerequisite[]   @relation("TopicPrerequisiteTarget")
+  prerequisiteFor TopicPrerequisite[]   @relation("TopicPrerequisiteSource")
+}
+
+model TopicPrerequisite {
+  topicId        String
+  prerequisiteId String
+  weight         Float  @default(1)
+
+  topic        Topic @relation("TopicPrerequisiteTarget", fields: [topicId], references: [id], onDelete: Cascade)
+  prerequisite Topic @relation("TopicPrerequisiteSource", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@id([topicId, prerequisiteId])
+  @@index([prerequisiteId])
+}
+
+model UserTopicPreference {
+  userId             String
+  topicId            String
+  priority           Float  @default(1)
+  baselineConfidence Int    @default(2)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+
+  @@id([userId, topicId])
+  @@index([topicId])
+}
+
+model UserTopicMastery {
+  userId           String
+  topicId          String
+  theta            Float     @default(-1.25)
+  mastery          Float     @default(0.22)
+  uncertainty      Float     @default(1)
+  attemptCount     Int       @default(0)
+  effectiveSuccess Float     @default(0)
+  lastPracticedAt  DateTime?
+  nextReviewAt     DateTime?
+  updatedAt        DateTime  @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+
+  @@id([userId, topicId])
+  @@index([userId, nextReviewAt])
+  @@index([topicId])
 }
 
 model Problem {
-  id          String    @id @default(cuid())
-  studyPlanId String
-  platform    String
-  problemId   String
-  name        String
-  difficulty  String
-  category    String
-  url         String
-  completed   Boolean   @default(false)
-  studyPlan   StudyPlan @relation(fields: [studyPlanId], references: [id])
+  id               String     @id @default(cuid())
+  platform         Platform
+  externalId       String
+  slug             String     @unique
+  title            String
+  url              String
+  difficulty       Difficulty
+  difficultyB      Float
+  estimatedMinutes Int
+  qualityScore     Float      @default(0.8)
+  acceptanceRate   Float?
+  pattern          String?
+  isPremium        Boolean    @default(false)
+  isActive         Boolean    @default(true)
+  catalogVersion   String     @default("2026.1")
+  metadata         Json?
+  reviewedAt       DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  topics              ProblemTopic[]
+  attempts            Attempt[]
+  userStates          UserProblemState[]
+  recommendationItems RecommendationItem[]
+  studyPlanItems      StudyPlanItem[]
+
+  @@unique([platform, externalId])
+  @@index([isActive, difficultyB])
+  @@index([difficulty, isActive])
 }
 
-model DailyProgress {
-  id          String    @id @default(cuid())
-  userId      String
-  date        DateTime
-  problemsSolved Int    @default(0)
-  timeSpent   Int       @default(0) // Time in minutes
-  categories  String[]
-  user        User      @relation(fields: [userId], references: [id])
-  
-  @@unique([userId, date])
-} 
+model ProblemTopic {
+  problemId String
+  topicId   String
+  weight    Float   @default(1)
+  isPrimary Boolean @default(false)
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Restrict)
+
+  @@id([problemId, topicId])
+  @@index([topicId, problemId])
+}
+
+model UserProblemState {
+  id                  String          @id @default(cuid())
+  userId              String
+  problemId           String
+  state               ProblemState    @default(NOT_STARTED)
+  latestOutcome       AttemptOutcome?
+  attemptCount        Int             @default(0)
+  solveCount          Int             @default(0)
+  totalMinutes        Int             @default(0)
+  bestDurationMinutes Int?
+  confidence          Int?
+  lastAttemptedAt     DateTime?
+  solvedAt            DateTime?
+  nextReviewAt        DateTime?
+  fsrsCard            Json?
+  bookmarked          Boolean         @default(false)
+  dismissedUntil      DateTime?
+  lastServedAt        DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, problemId])
+  @@index([userId, state, nextReviewAt])
+  @@index([userId, dismissedUntil])
+  @@index([problemId])
+}
+
+model Attempt {
+  id                   String             @id @default(cuid())
+  userId               String
+  problemId            String
+  recommendationItemId String?
+  idempotencyKey       String
+  outcome              AttemptOutcome
+  source               AttemptSource      @default(IN_APP)
+  startedAt            DateTime?
+  completedAt          DateTime           @default(now())
+  durationMinutes      Int
+  hintsUsed            Int                @default(0)
+  confidence           Int
+  language             PreferredLanguage?
+  notes                String?            @db.VarChar(500)
+  createdAt            DateTime           @default(now())
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem            Problem             @relation(fields: [problemId], references: [id], onDelete: Restrict)
+  recommendationItem RecommendationItem? @relation(fields: [recommendationItemId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, completedAt(sort: Desc)])
+  @@index([userId, problemId, completedAt(sort: Desc)])
+  @@index([problemId])
+  @@index([recommendationItemId])
+}
+
+model RecommendationRun {
+  id           String             @id @default(cuid())
+  userId       String
+  mode         RecommendationMode @default(DAILY)
+  modelVersion String
+  seed         String
+  context      Json
+  createdAt    DateTime           @default(now())
+  expiresAt    DateTime
+
+  user  User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items RecommendationItem[]
+
+  @@index([userId, mode, createdAt(sort: Desc)])
+  @@index([expiresAt])
+}
+
+model RecommendationItem {
+  id                        String             @id @default(cuid())
+  runId                     String
+  problemId                 String
+  rank                      Int
+  lane                      RecommendationLane
+  baseScore                 Float
+  finalScore                Float
+  predictedSolveProbability Float
+  components                Json
+  reasons                   Json
+  impressedAt               DateTime?
+  openedAt                  DateTime?
+  startedAt                 DateTime?
+  completedAt               DateTime?
+  dismissedAt               DateTime?
+
+  run      RecommendationRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  problem  Problem               @relation(fields: [problemId], references: [id], onDelete: Restrict)
+  attempts Attempt[]
+  events   RecommendationEvent[]
+
+  @@unique([runId, problemId])
+  @@unique([runId, rank])
+  @@index([problemId])
+}
+
+model RecommendationEvent {
+  id             String                  @id @default(cuid())
+  userId         String
+  itemId         String
+  type           RecommendationEventType
+  idempotencyKey String
+  createdAt      DateTime                @default(now())
+
+  user User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item RecommendationItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@index([itemId, createdAt])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model StudyPlan {
+  id            String     @id @default(cuid())
+  userId        String
+  title         String
+  description   String?    @db.VarChar(500)
+  status        PlanStatus @default(ACTIVE)
+  startDate     DateTime   @db.Date
+  endDate       DateTime   @db.Date
+  minutesPerDay Int
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items StudyPlanItem[]
+
+  @@index([userId, status])
+  @@index([userId, startDate, endDate])
+}
+
+model StudyPlanItem {
+  id           String         @id @default(cuid())
+  planId       String
+  problemId    String
+  scheduledFor DateTime       @db.Date
+  position     Int
+  status       PlanItemStatus @default(TODO)
+  completedAt  DateTime?
+
+  plan    StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  problem Problem   @relation(fields: [problemId], references: [id], onDelete: Restrict)
+
+  @@unique([planId, problemId])
+  @@unique([planId, scheduledFor, position])
+  @@index([planId, scheduledFor])
+  @@index([problemId])
+}
+
+model DailyActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  day       DateTime @db.Date
+  attempted Int      @default(0)
+  solved    Int      @default(0)
+  reviewed  Int      @default(0)
+  minutes   Int      @default(0)
+  points    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@index([userId, day(sort: Desc)])
+}
