@@ -16,6 +16,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { recordAttempt } from "@/lib/services/attempts";
+import { getAnalytics } from "@/lib/services/analytics";
+import { seedMasteryFromPlatform } from "@/lib/services/external-mastery";
 import { commitPlatformSnapshot } from "@/lib/services/platform-sync";
 import { getRecommendations, recordRecommendationEvent } from "@/lib/services/recommendations";
 
@@ -223,6 +225,87 @@ describe.sequential("product database invariants", () => {
     });
     expect(completed.status).toBe(PlanStatus.COMPLETED);
     expect(completed.items.every((item) => item.status === PlanItemStatus.COMPLETED)).toBe(true);
+  });
+
+  it("surfaces imported platform stats and replaces untouched onboarding priors", async () => {
+    const user = await createCompleteUser();
+    const [arrays, hashing] = await Promise.all([
+      db.topic.findUniqueOrThrow({ where: { slug: "arrays" } }),
+      db.topic.findUniqueOrThrow({ where: { slug: "hashing" } }),
+    ]);
+    const priorTheta = -1.25;
+    const priorMastery = 1 / (1 + Math.exp(-priorTheta));
+    await db.userProfile.update({
+      where: { userId: user.id },
+      data: { experienceLevel: ExperienceLevel.BEGINNER },
+    });
+    await db.userTopicMastery.updateMany({
+      where: { userId: user.id },
+      data: { theta: priorTheta, mastery: priorMastery, uncertainty: 1, attemptCount: 0 },
+    });
+    await db.userTopicMastery.update({
+      where: { userId_topicId: { userId: user.id, topicId: arrays.id } },
+      data: { theta: 0.2, mastery: 1 / (1 + Math.exp(-0.2)), uncertainty: 0.4, attemptCount: 3 },
+    });
+
+    const identity = await db.platformIdentity.create({
+      data: {
+        userId: user.id,
+        platform: Platform.LEETCODE,
+        handle: "integration-handle",
+        normalizedHandle: "integration-handle",
+        profileUrl: "https://leetcode.com/u/integration-handle/",
+        status: PlatformStatus.PENDING,
+      },
+    });
+    const solvedByTag = [
+      { tagSlug: "array", solved: 200 },
+      { tagSlug: "hash-table", solved: 25 },
+    ];
+    const stats = {
+      platform: Platform.LEETCODE,
+      handle: "integration-handle",
+      profileUrl: "https://leetcode.com/u/integration-handle/",
+      totalSolved: 240,
+      easySolved: 100,
+      mediumSolved: 110,
+      hardSolved: 30,
+      rating: null,
+      ranking: 12_345,
+      reputation: 7,
+      solvedByTag,
+      raw: { totalSolved: 240, solvedByTag },
+    };
+    await commitPlatformSnapshot({
+      identity: {
+        id: identity.id,
+        normalizedHandle: identity.normalizedHandle,
+        updatedAt: identity.updatedAt,
+      },
+      stats,
+      ttlSeconds: 900,
+    });
+
+    expect(await seedMasteryFromPlatform({ userId: user.id, platform: Platform.LEETCODE, stats })).toBe(1);
+    const analytics = await getAnalytics(user.id, "UTC", 30);
+    const arraysMastery = analytics.mastery.find((topic) => topic.slug === "arrays");
+    const hashingMastery = analytics.mastery.find((topic) => topic.slug === "hashing");
+    const priorTopic = analytics.mastery.find((topic) => topic.slug === "recursion");
+
+    expect(analytics.mastery).toHaveLength(await db.topic.count());
+    expect(arraysMastery).toMatchObject({ theta: 0.2, attempts: 3, evidence: "IN_APP" });
+    expect(hashingMastery?.mastery).toBeGreaterThan(priorMastery);
+    expect(hashingMastery?.evidence).toBe("PLATFORM");
+    expect(priorTopic?.mastery).toBeCloseTo(priorMastery, 12);
+    expect(priorTopic?.evidence).toBe("PRIOR");
+    expect(analytics.integrations[0]?.stats).toMatchObject({
+      totalSolved: 240,
+      easySolved: 100,
+      mediumSolved: 110,
+      hardSolved: 30,
+      ranking: 12_345,
+      solvedByTag,
+    });
   });
 
   it("refuses to commit stale platform stats after a handle changes", async () => {

@@ -8,6 +8,8 @@ export { MetricCard } from "./MetricCard";
 export type { MetricIcon, MetricTone, MetricTrendDirection } from "./MetricCard";
 export { PlatformConnections } from "./PlatformConnections";
 export type { PlatformConnectionValue, SettingsPlatform, SettingsPlatformStatus } from "./PlatformConnections";
+export { PlatformEvidence } from "./PlatformEvidence";
+export type { PlatformEvidenceValue } from "./PlatformEvidence";
 export { ProfilePreferencesForm } from "./ProfilePreferencesForm";
 export type { ProfilePreferencesValue } from "./ProfilePreferencesForm";
 export { ProgressChartWrapper } from "./ProgressChartWrapper";

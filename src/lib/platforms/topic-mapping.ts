@@ -138,8 +138,10 @@ export interface ExternalTopicEvidence {
 }
 
 /**
- * Collapses platform tags onto catalog topics, summing counts where several
- * tags map to one topic (LeetCode's "tree" and "binary-tree" both mean trees).
+ * Collapses platform tags onto catalog topics. Platform tag buckets overlap —
+ * the same problem can be both `tree` and `binary-tree` — so taking the maximum
+ * is a conservative approximation of the union. Summing would definitely
+ * double-count some solved problems and overstate the user's starting ability.
  */
 export function aggregateTopicEvidence(
   platform: "LEETCODE" | "CODEFORCES",
@@ -149,7 +151,7 @@ export function aggregateTopicEvidence(
   for (const tag of solvedByTag) {
     const topicSlug = mapPlatformTag(platform, tag.tagSlug);
     if (!topicSlug) continue;
-    byTopic.set(topicSlug, (byTopic.get(topicSlug) ?? 0) + Math.max(0, tag.solved));
+    byTopic.set(topicSlug, Math.max(byTopic.get(topicSlug) ?? 0, Math.max(0, tag.solved)));
   }
   return [...byTopic.entries()].map(([topicSlug, solved]) => ({ topicSlug, solved }));
 }

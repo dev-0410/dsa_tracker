@@ -13,6 +13,7 @@ interface MasteryBarProps {
   topic: string;
   percent: number;
   attemptCount?: number;
+  evidenceLabel?: string;
   nextReviewLabel?: string | null;
   trend?: MasteryTrend;
   trendLabel?: string;
@@ -40,6 +41,7 @@ export function MasteryBar({
   topic,
   percent,
   attemptCount,
+  evidenceLabel,
   nextReviewLabel,
   trend = "flat",
   trendLabel,
@@ -57,7 +59,8 @@ export function MasteryBar({
           <p className="truncate text-sm font-bold text-ink">{topic}</p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
             <span className="font-semibold">{state.label}</span>
-            {attemptCount !== undefined ? <span>{attemptCount} attempts</span> : null}
+            {evidenceLabel ? <span>{evidenceLabel}</span> : null}
+            {!evidenceLabel && attemptCount !== undefined ? <span>{attemptCount} attempts</span> : null}
             {nextReviewLabel ? (
               <span className="inline-flex items-center gap-1">
                 <ClockIcon aria-hidden="true" className="h-3.5 w-3.5" />

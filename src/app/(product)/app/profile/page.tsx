@@ -11,10 +11,9 @@ import {
   IdentificationIcon,
 } from "@heroicons/react/24/outline";
 import { PageHeader } from "@/components/app-shell";
-import { MasteryBar, MetricCard } from "@/components/product";
+import { MasteryBar, MetricCard, PlatformEvidence } from "@/components/product";
 import { Badge, buttonStyles } from "@/components/ui";
 import { requireCompleteUser } from "@/lib/auth";
-import { platformProfileUrl } from "@/lib/platforms";
 import { getAnalytics } from "@/lib/services/analytics";
 
 export const dynamic = "force-dynamic";
@@ -47,18 +46,6 @@ const languageLabels = {
   RUST: "Rust",
 } as const;
 
-const platformLabels = {
-  LEETCODE: "LeetCode",
-  CODEFORCES: "Codeforces",
-} as const;
-
-const statusPresentation = {
-  PENDING: { label: "Ready to sync", variant: "warning" as const },
-  ACTIVE: { label: "Connected", variant: "success" as const },
-  ERROR: { label: "Needs attention", variant: "danger" as const },
-  MANUAL_ONLY: { label: "Manual tracking", variant: "neutral" as const },
-};
-
 function initials(name: string): string {
   return (
     name
@@ -87,6 +74,7 @@ export default async function ProfilePage() {
   });
   const averageMastery = Math.round(analytics.summary.averageMastery * 100);
   const weakestTopic = analytics.mastery[0];
+  const primaryIntegration = analytics.integrations.find((integration) => integration.stats);
 
   return (
     <div>
@@ -166,7 +154,13 @@ export default async function ProfilePage() {
         </section>
 
         <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricCard label="Problems solved" value={analytics.summary.totalSolved} icon="solved" tone="success" helper={`${analytics.summary.weekSolved} this week`} />
+          <MetricCard
+            label={primaryIntegration ? `${primaryIntegration.platform === "LEETCODE" ? "LeetCode" : "Codeforces"} solved` : "In-app solves"}
+            value={primaryIntegration?.stats?.totalSolved ?? analytics.summary.totalSolved}
+            icon="solved"
+            tone="success"
+            helper={primaryIntegration ? `Imported from @${primaryIntegration.handle}` : `${analytics.summary.weekSolved} this week`}
+          />
           <MetricCard label="Current streak" value={`${analytics.summary.currentStreak}d`} icon="streak" tone="warning" helper="Consecutive active days" />
           <MetricCard label="Meaningful accuracy" value={`${Math.round(analytics.summary.accuracy * 100)}%`} icon="mastery" tone="info" helper="Excludes abandoned work" />
           <MetricCard label="Average mastery" value={`${averageMastery}%`} icon="momentum" tone="highlight" helper={weakestTopic ? `${weakestTopic.topic} is the next focus` : "Calibrates as you practice"} />
@@ -184,7 +178,14 @@ export default async function ProfilePage() {
             {analytics.mastery.length ? (
               <div className="grid gap-3 md:grid-cols-2">
                 {analytics.mastery.slice(0, 8).map((topic) => (
-                  <MasteryBar key={topic.topicId} topic={topic.topic} percent={topic.mastery * 100} attemptCount={topic.attempts} compact />
+                  <MasteryBar
+                    key={topic.topicId}
+                    topic={topic.topic}
+                    percent={topic.mastery * 100}
+                    attemptCount={topic.evidence === "IN_APP" ? topic.attempts : undefined}
+                    evidenceLabel={topic.evidence === "PLATFORM" ? "Imported profile" : topic.evidence === "PRIOR" ? "Starting estimate" : undefined}
+                    compact
+                  />
                 ))}
               </div>
             ) : (
@@ -206,36 +207,13 @@ export default async function ProfilePage() {
               <Link href="/app/settings#platforms" className="text-xs font-bold text-action hover:underline">Manage</Link>
             </div>
             <div className="space-y-3">
-              {analytics.integrations.length ? analytics.integrations.map((integration) => {
-                const status = statusPresentation[integration.status];
-                return (
-                  <article key={integration.platform} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-ink">{platformLabels[integration.platform]}</p>
-                        <a
-                          href={platformProfileUrl(integration.platform, integration.handle)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-1 inline-flex max-w-full items-center gap-1 font-mono text-xs font-semibold text-action hover:underline"
-                        >
-                          <span className="truncate">@{integration.handle}</span>
-                          <ArrowTopRightOnSquareIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-                        </a>
-                      </div>
-                      <Badge variant={status.variant}>{status.label}</Badge>
-                    </div>
-                    <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-4 text-center">
-                      <div><dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">Solved</dt><dd className="mt-1 font-mono text-sm font-bold text-ink">{integration.stats?.totalSolved ?? "—"}</dd></div>
-                      <div className="border-x border-line px-2"><dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">Rating</dt><dd className="mt-1 font-mono text-sm font-bold text-ink">{integration.stats?.rating ?? "—"}</dd></div>
-                      <div><dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">Rank</dt><dd className="mt-1 font-mono text-sm font-bold text-ink">{integration.stats?.ranking ? `#${integration.stats.ranking.toLocaleString("en-US")}` : "—"}</dd></div>
-                    </dl>
-                    <p className="mt-4 text-xs text-muted">
-                      {integration.lastSyncedAt ? `Synced ${dateFormatter.format(new Date(integration.lastSyncedAt))}` : "No successful sync yet"}
-                    </p>
-                  </article>
-                );
-              }) : (
+              {analytics.integrations.length ? analytics.integrations.map((integration) => (
+                <PlatformEvidence
+                  key={integration.platform}
+                  integration={integration}
+                  timezone={user.profile.timezone}
+                />
+              )) : (
                 <div className="rounded-2xl border border-dashed border-line bg-surface p-6 text-center">
                   <p className="text-sm font-bold text-ink">No coding platform connected</p>
                   <p className="mt-2 text-xs leading-5 text-muted">Connect a public handle to add external practice evidence.</p>

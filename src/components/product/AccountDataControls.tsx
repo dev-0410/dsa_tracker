@@ -99,7 +99,7 @@ export function AccountDataControls() {
         <div className="rounded-xl border border-line bg-subtle/45 p-4">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-action shadow-card">
-              <ArrowDownTrayIcon aria-hidden="true" className="h-4.5 w-4.5" />
+              <ArrowDownTrayIcon aria-hidden="true" className="h-[18px] w-[18px]" />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-bold text-ink">Download your data</h3>
@@ -115,7 +115,7 @@ export function AccountDataControls() {
         <div className="rounded-xl border border-danger/30 bg-danger/5 p-4">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-danger/10 text-danger">
-              <TrashIcon aria-hidden="true" className="h-4.5 w-4.5" />
+              <TrashIcon aria-hidden="true" className="h-[18px] w-[18px]" />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-bold text-ink">Delete account</h3>

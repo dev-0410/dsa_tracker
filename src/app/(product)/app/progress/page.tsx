@@ -4,6 +4,7 @@ import {
   DifficultyProgressChart,
   MasteryBar,
   MetricCard,
+  PlatformEvidence,
   ProgressChartWrapper,
   SolveTrendChart,
 } from "@/components/product";
@@ -19,6 +20,10 @@ export default async function ProgressPage() {
   const recent = analytics.series.slice(-30);
   const strongest = analytics.mastery.at(-1);
   const weakest = analytics.mastery[0];
+  const syncedIntegrations = analytics.integrations.filter((integration) => integration.stats);
+  const primaryIntegration = syncedIntegrations[0];
+  const evidenceBackedTopics = analytics.mastery.filter((topic) => topic.evidence !== "PRIOR").length;
+  const startingTopics = analytics.mastery.length - evidenceBackedTopics;
 
   return (
     <div>
@@ -31,11 +36,39 @@ export default async function ProgressPage() {
 
       <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MetricCard label="Problems solved" value={analytics.summary.totalSolved} icon="solved" tone="success" helper={`${analytics.summary.weekSolved} this week`} />
+          <MetricCard
+            label={primaryIntegration ? `${primaryIntegration.platform === "LEETCODE" ? "LeetCode" : "Codeforces"} solved` : "In-app solves"}
+            value={primaryIntegration?.stats?.totalSolved ?? analytics.summary.totalSolved}
+            icon="solved"
+            tone="success"
+            helper={primaryIntegration ? `Imported from @${primaryIntegration.handle}` : `${analytics.summary.weekSolved} this week`}
+          />
           <MetricCard label="Current streak" value={`${analytics.summary.currentStreak}d`} icon="streak" tone="warning" helper="Consecutive active days" />
           <MetricCard label="Attempt accuracy" value={`${Math.round(analytics.summary.accuracy * 100)}%`} icon="mastery" tone="info" helper="Solved ÷ meaningful attempts" />
-          <MetricCard label="Average mastery" value={`${Math.round(analytics.summary.averageMastery * 100)}%`} icon="momentum" tone="highlight" helper="Across calibrated topics" />
+          <MetricCard
+            label="Average mastery"
+            value={`${Math.round(analytics.summary.averageMastery * 100)}%`}
+            icon="momentum"
+            tone="highlight"
+            helper={`${evidenceBackedTopics} evidence-backed · ${startingTopics} starting`}
+          />
         </div>
+
+        {syncedIntegrations.length ? (
+          <section className="mt-6" aria-labelledby="platform-evidence-title">
+            <div className="mb-4">
+              <p className="eyebrow">Connected profile data</p>
+              <h2 id="platform-evidence-title" className="mt-1 text-xl font-bold tracking-[-0.03em]">
+                Imported coding-platform evidence
+              </h2>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-2">
+              {syncedIntegrations.map((integration) => (
+                <PlatformEvidence key={integration.platform} integration={integration} timezone={user.profile.timezone} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="mt-6 rounded-2xl border border-action/20 bg-action/5 p-5 sm:p-6" aria-labelledby="progress-insight">
           <p className="eyebrow">Current takeaway</p>
@@ -78,7 +111,14 @@ export default async function ProgressPage() {
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {analytics.mastery.map((topic) => (
-              <MasteryBar key={topic.topicId} topic={topic.topic} percent={topic.mastery * 100} attemptCount={topic.attempts} nextReviewLabel={topic.nextReviewAt ? new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(Math.ceil((new Date(topic.nextReviewAt).getTime() - generatedAt.getTime()) / 86_400_000), "day") : null} />
+              <MasteryBar
+                key={topic.topicId}
+                topic={topic.topic}
+                percent={topic.mastery * 100}
+                attemptCount={topic.evidence === "IN_APP" ? topic.attempts : undefined}
+                evidenceLabel={topic.evidence === "PLATFORM" ? "Imported profile" : topic.evidence === "PRIOR" ? "Starting estimate" : undefined}
+                nextReviewLabel={topic.nextReviewAt ? new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(Math.ceil((new Date(topic.nextReviewAt).getTime() - generatedAt.getTime()) / 86_400_000), "day") : null}
+              />
             ))}
           </div>
         </section>

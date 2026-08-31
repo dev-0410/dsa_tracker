@@ -19,6 +19,21 @@ function dateKey(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+function solvedByTagFromRaw(raw: Prisma.JsonValue | null) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+  const value = raw.solvedByTag;
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const tagSlug = entry.tagSlug;
+    const solved = entry.solved;
+    return typeof tagSlug === "string" && typeof solved === "number" && Number.isFinite(solved)
+      ? [{ tagSlug, solved: Math.max(0, Math.trunc(solved)) }]
+      : [];
+  });
+}
+
 function calculateStreak(days: Date[], today: Date) {
   const active = new Set(days.map(dateKey));
   let cursor = today;
@@ -148,6 +163,12 @@ export async function getAnalytics(userId: string, timezone: string, rangeDays =
       theta: item.theta,
       uncertainty: item.uncertainty,
       attempts: item.attemptCount,
+      evidence:
+        item.attemptCount > 0
+          ? ("IN_APP" as const)
+          : item.uncertainty <= 0.75
+            ? ("PLATFORM" as const)
+            : ("PRIOR" as const),
       lastPracticedAt: item.lastPracticedAt?.toISOString() ?? null,
       nextReviewAt: item.nextReviewAt?.toISOString() ?? null,
     })),
@@ -175,13 +196,22 @@ export async function getAnalytics(userId: string, timezone: string, rangeDays =
     integrations: integrations.map((identity) => ({
       platform: identity.platform,
       handle: identity.handle,
+      profileUrl: identity.profileUrl,
       status: identity.status,
       lastSyncedAt: identity.lastSyncedAt?.toISOString() ?? null,
       stats: identity.snapshots[0]
         ? {
             totalSolved: identity.snapshots[0].totalSolved,
+            easySolved: identity.snapshots[0].easySolved,
+            mediumSolved: identity.snapshots[0].mediumSolved,
+            hardSolved: identity.snapshots[0].hardSolved,
             rating: identity.snapshots[0].rating,
             ranking: identity.snapshots[0].ranking,
+            reputation: identity.snapshots[0].reputation,
+            capturedAt: identity.snapshots[0].capturedAt.toISOString(),
+            solvedByTag: solvedByTagFromRaw(identity.snapshots[0].raw).sort(
+              (left, right) => right.solved - left.solved || left.tagSlug.localeCompare(right.tagSlug),
+            ),
           }
         : null,
     })),

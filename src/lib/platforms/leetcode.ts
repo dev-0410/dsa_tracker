@@ -189,6 +189,7 @@ export async function fetchLeetCodeStats(handle: string): Promise<PlatformStats>
       hardSolved,
       ranking: user.profile?.ranking ?? null,
       reputation: user.profile?.reputation ?? null,
+      solvedByTag,
     },
   };
 }

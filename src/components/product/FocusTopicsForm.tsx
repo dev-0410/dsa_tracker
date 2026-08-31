@@ -121,7 +121,7 @@ export function FocusTopicsForm({ topics, initialSelectedIds }: FocusTopicsFormP
 
       <label className="relative mt-5 block">
         <span className="sr-only">Search catalog topics</span>
-        <MagnifyingGlassIcon aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted" />
+        <MagnifyingGlassIcon aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted" />
         <input
           type="search"
           value={search}

@@ -2,8 +2,12 @@ import { Prisma, PlatformStatus } from "@prisma/client";
 import { ApiError, handleApiError, requestIdFrom, successResponse } from "@/lib/api-response";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { UpstreamServiceError } from "@/lib/http";
+import { fetchPlatformStats, normalizePlatformHandle } from "@/lib/platforms";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { assertSameOrigin, readJson } from "@/lib/request-security";
+import { seedMasteryFromPlatform } from "@/lib/services/external-mastery";
+import { recordExternalSolves } from "@/lib/services/handle-onboarding";
 import { invalidatePublicProfileCache } from "@/lib/services/public-profile";
 import { onboardingSchema, profileUpdateSchema } from "@/lib/validation";
 
@@ -91,6 +95,28 @@ export async function PUT(request: Request) {
       throw new ApiError(422, "INVALID_TOPICS", "One or more selected topics no longer exist.");
     }
 
+    // A connected profile is the onboarding baseline, so verify and fetch it
+    // before marking onboarding complete. Previously this route only stored a
+    // PENDING handle, leaving every topic at the 22% beginner prior until the
+    // user discovered a separate manual sync control.
+    const platformStats = await Promise.all(
+      input.platformIdentities.map(async (identity) => {
+        try {
+          return await fetchPlatformStats(identity.platform, identity.handle);
+        } catch (error) {
+          if (error instanceof UpstreamServiceError) {
+            throw new ApiError(
+              error.code === "NOT_FOUND" ? 404 : 502,
+              `PLATFORM_${error.code}`,
+              error.message,
+            );
+          }
+          throw error;
+        }
+      }),
+    );
+    const statsByPlatform = new Map(platformStats.map((stats) => [stats.platform, stats]));
+
     const initialTheta = {
       BEGINNER: -1.25,
       INTERMEDIATE: -0.25,
@@ -169,7 +195,9 @@ export async function PUT(request: Request) {
           },
         });
         for (const identity of input.platformIdentities) {
-          const normalizedHandle = identity.handle.trim().toLocaleLowerCase("en-US");
+          const stats = statsByPlatform.get(identity.platform);
+          if (!stats) throw new ApiError(502, "PLATFORM_DATA_MISSING", "The platform profile could not be imported.");
+          const normalizedHandle = normalizePlatformHandle(stats.handle);
           const existingIdentity = await transaction.platformIdentity.findUnique({
             where: { userId_platform: { userId: current.id, platform: identity.platform } },
             select: { id: true, normalizedHandle: true },
@@ -177,29 +205,43 @@ export async function PUT(request: Request) {
           const handleChanged = existingIdentity?.normalizedHandle !== normalizedHandle;
           if (existingIdentity && handleChanged) {
             await transaction.platformSnapshot.deleteMany({ where: { identityId: existingIdentity.id } });
+            await transaction.externalSolve.deleteMany({
+              where: { userId: current.id, platform: identity.platform },
+            });
           }
-          const profileUrl =
-            identity.platform === "LEETCODE"
-              ? `https://leetcode.com/u/${encodeURIComponent(identity.handle)}/`
-              : `https://codeforces.com/profile/${encodeURIComponent(identity.handle)}`;
-          await transaction.platformIdentity.upsert({
+          const syncedIdentity = await transaction.platformIdentity.upsert({
             where: { userId_platform: { userId: current.id, platform: identity.platform } },
             create: {
               userId: current.id,
               platform: identity.platform,
-              handle: identity.handle,
+              handle: stats.handle,
               normalizedHandle,
-              profileUrl,
-              status: PlatformStatus.PENDING,
+              profileUrl: stats.profileUrl,
+              status: PlatformStatus.ACTIVE,
+              lastSyncedAt: completedAt,
+              lastErrorCode: null,
             },
             update: {
-              handle: identity.handle,
+              handle: stats.handle,
               normalizedHandle,
-              profileUrl,
-              status: PlatformStatus.PENDING,
-              lastSyncedAt: handleChanged ? null : undefined,
+              profileUrl: stats.profileUrl,
+              status: PlatformStatus.ACTIVE,
+              lastSyncedAt: completedAt,
               lastErrorCode: null,
               nextSyncAt: null,
+            },
+          });
+          await transaction.platformSnapshot.create({
+            data: {
+              identityId: syncedIdentity.id,
+              totalSolved: stats.totalSolved,
+              easySolved: stats.easySolved,
+              mediumSolved: stats.mediumSolved,
+              hardSolved: stats.hardSolved,
+              rating: stats.rating,
+              ranking: stats.ranking,
+              reputation: stats.reputation,
+              raw: stats.raw,
             },
           });
         }
@@ -207,9 +249,33 @@ export async function PUT(request: Request) {
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
 
+    const topicsSeeded = (
+      await Promise.all(
+        platformStats.map((stats) =>
+          seedMasteryFromPlatform({ userId: current.id, platform: stats.platform, stats }),
+        ),
+      )
+    ).reduce((total, count) => total + count, 0);
+    const historyImports = await Promise.allSettled(
+      platformStats.map((stats) =>
+        recordExternalSolves({ userId: current.id, platform: stats.platform, handle: stats.handle }),
+      ),
+    );
+    const solvesRecorded = historyImports.reduce(
+      (total, result) => total + (result.status === "fulfilled" ? result.value : 0),
+      0,
+    );
+
     const user = await db.user.findUniqueOrThrow({ where: { id: current.id }, include: profileInclude });
     invalidatePublicProfileCache(current.profile?.handle, user.profile?.handle);
-    return successResponse(serializeUser(user), {
+    return successResponse({
+      ...serializeUser(user),
+      imported: {
+        topicsSeeded,
+        solvesRecorded,
+        historyComplete: platformStats.every((stats) => stats.platform === "CODEFORCES"),
+      },
+    }, {
       status: 201,
       requestId: requestIdFrom(request),
       headers: rateLimitHeaders(limit),

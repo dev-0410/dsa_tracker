@@ -240,7 +240,7 @@ export function OnboardingForm({ user, topics }: Props) {
                 </div>
                 <div className="mt-7 grid gap-4 rounded-xl border border-line bg-subtle/55 p-4 sm:grid-cols-[180px_1fr]">
                   <label className="text-sm font-bold">Platform<select className={fieldClass} value={form.platform} onChange={(event) => setValue("platform", event.target.value)}><option value="LEETCODE">LeetCode</option><option value="CODEFORCES">Codeforces</option></select></label>
-                  <label className="text-sm font-bold">Public username<input className={fieldClass} value={form.platformHandle} onChange={(event) => setValue("platformHandle", event.target.value)} placeholder={form.platform === "LEETCODE" ? "your-leetcode-handle" : "your_codeforces_handle"} /><span className="mt-1.5 block text-xs font-normal text-muted">We store aggregate public stats, never credentials or submissions.</span></label>
+                  <label className="text-sm font-bold">Public username<input className={fieldClass} value={form.platformHandle} onChange={(event) => setValue("platformHandle", event.target.value)} placeholder={form.platform === "LEETCODE" ? "your-leetcode-handle" : "your_codeforces_handle"} /><span className="mt-1.5 block text-xs font-normal text-muted">We import public solved counts and accepted problem IDs, never platform credentials.</span></label>
                 </div>
               </div>
             ) : null}
@@ -249,7 +249,7 @@ export function OnboardingForm({ user, topics }: Props) {
 
             <div className="mt-8 flex items-center justify-between border-t border-line pt-5">
               <Button variant="ghost" disabled={step === 0 || pending} onClick={() => { setStep((current) => Math.max(0, current - 1)); setError(null); }}><ArrowLeftIcon className="h-4 w-4" />Back</Button>
-              {step < 2 ? <Button onClick={nextStep}>Continue<ArrowRightIcon className="h-4 w-4" /></Button> : <Button onClick={submit} disabled={pending} aria-busy={pending}>{pending ? "Building your queue…" : "Enter Invariant"}<ArrowRightIcon className="h-4 w-4" /></Button>}
+              {step < 2 ? <Button onClick={nextStep}>Continue<ArrowRightIcon className="h-4 w-4" /></Button> : <Button onClick={submit} disabled={pending} aria-busy={pending}>{pending ? "Importing profile…" : "Import profile and continue"}<ArrowRightIcon className="h-4 w-4" /></Button>}
             </div>
           </section>
 

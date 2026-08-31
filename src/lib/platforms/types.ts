@@ -1,4 +1,4 @@
-import type { Platform } from "@prisma/client";
+import type { Platform, Prisma } from "@prisma/client";
 
 export type PlatformTagSolved = {
   /** Platform-native topic identifier, e.g. LeetCode's "binary-search". */
@@ -23,5 +23,5 @@ export type PlatformStats = {
    * cannot distinguish 200 array problems from 200 graph problems.
    */
   solvedByTag?: PlatformTagSolved[];
-  raw: Record<string, string | number | null>;
+  raw: Prisma.InputJsonObject;
 };

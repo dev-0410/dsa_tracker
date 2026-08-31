@@ -24,8 +24,12 @@ export interface PlatformConnectionValue {
   lastErrorCode: string | null;
   stats: {
     totalSolved: number;
+    easySolved: number | null;
+    mediumSolved: number | null;
+    hardSolved: number | null;
     rating: number | null;
     ranking: number | null;
+    reputation: number | null;
   } | null;
 }
 
@@ -43,8 +47,12 @@ interface ApiIdentity {
 
 interface ApiSnapshot {
   totalSolved?: number;
+  easySolved?: number | null;
+  mediumSolved?: number | null;
+  hardSolved?: number | null;
   rating?: number | null;
   ranking?: number | null;
+  reputation?: number | null;
 }
 
 interface ApiEnvelope<T> {
@@ -184,8 +192,12 @@ export function PlatformConnections({ initialConnections }: PlatformConnectionsP
               stats: snapshot
                 ? {
                     totalSolved: snapshot.totalSolved ?? current[platform]?.stats?.totalSolved ?? 0,
+                    easySolved: snapshot.easySolved ?? current[platform]?.stats?.easySolved ?? null,
+                    mediumSolved: snapshot.mediumSolved ?? current[platform]?.stats?.mediumSolved ?? null,
+                    hardSolved: snapshot.hardSolved ?? current[platform]?.stats?.hardSolved ?? null,
                     rating: snapshot.rating ?? current[platform]?.stats?.rating ?? null,
                     ranking: snapshot.ranking ?? current[platform]?.stats?.ranking ?? null,
+                    reputation: snapshot.reputation ?? current[platform]?.stats?.reputation ?? null,
                   }
                 : current[platform]?.stats ?? null,
             }
@@ -251,22 +263,38 @@ export function PlatformConnections({ initialConnections }: PlatformConnectionsP
               </label>
 
               {connection?.stats ? (
-                <dl className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-line bg-surface p-3 text-center">
-                  <div>
-                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">Solved</dt>
-                    <dd className="mt-1 font-mono text-sm font-bold text-ink">{connection.stats.totalSolved}</dd>
-                  </div>
-                  <div className="border-x border-line px-2">
-                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">Rating</dt>
-                    <dd className="mt-1 font-mono text-sm font-bold text-ink">{connection.stats.rating ?? "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">Ranking</dt>
-                    <dd className="mt-1 font-mono text-sm font-bold text-ink">
-                      {connection.stats.ranking ? `#${connection.stats.ranking.toLocaleString("en-US")}` : "—"}
-                    </dd>
-                  </div>
-                </dl>
+                item.platform === "LEETCODE" ? (
+                  <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line text-center sm:grid-cols-4">
+                    {[
+                      ["Solved", connection.stats.totalSolved],
+                      ["Easy", connection.stats.easySolved],
+                      ["Medium", connection.stats.mediumSolved],
+                      ["Hard", connection.stats.hardSolved],
+                    ].map(([label, value]) => (
+                      <div key={label} className="bg-surface p-3">
+                        <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">{label}</dt>
+                        <dd className="mt-1 font-mono text-sm font-bold tabular-nums text-ink">{value ?? "—"}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <dl className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-line bg-surface p-3 text-center">
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">Solved</dt>
+                      <dd className="mt-1 font-mono text-sm font-bold text-ink">{connection.stats.totalSolved}</dd>
+                    </div>
+                    <div className="border-x border-line px-2">
+                      <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">Rating</dt>
+                      <dd className="mt-1 font-mono text-sm font-bold text-ink">{connection.stats.rating ?? "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted">Ranking</dt>
+                      <dd className="mt-1 font-mono text-sm font-bold text-ink">
+                        {connection.stats.ranking ? `#${connection.stats.ranking.toLocaleString("en-US")}` : "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                )
               ) : null}
 
               <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted">

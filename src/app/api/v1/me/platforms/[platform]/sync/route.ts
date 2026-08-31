@@ -7,6 +7,7 @@ import { fetchPlatformStats } from "@/lib/platforms";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/request-security";
 import { seedMasteryFromPlatform } from "@/lib/services/external-mastery";
+import { recordExternalSolves } from "@/lib/services/handle-onboarding";
 import { commitPlatformSnapshot, type PlatformIdentityVersion } from "@/lib/services/platform-sync";
 import { invalidatePublicProfileCache } from "@/lib/services/public-profile";
 
@@ -64,9 +65,25 @@ export async function POST(request: Request, context: Context) {
     const stats = await fetchPlatformStats(platform, identity.handle);
     const snapshot = await commitPlatformSnapshot({ identity: identityVersion, stats, ttlSeconds });
     const seededTopics = await seedMasteryFromPlatform({ userId: user.id, platform, stats });
+    let solvesRecorded = 0;
+    let historyWarning: string | null = null;
+    try {
+      solvesRecorded = await recordExternalSolves({
+        userId: user.id,
+        platform,
+        handle: stats.handle,
+      });
+    } catch (error) {
+      // Aggregate stats and mastery are still useful if submission history is
+      // temporarily unavailable. A later sync can fill the deduplication set.
+      historyWarning =
+        error instanceof UpstreamServiceError
+          ? error.message
+          : "Solved-problem history could not be refreshed.";
+    }
 
     invalidatePublicProfileCache(user.profile.handle);
-    return successResponse({ snapshot, cached: false, seededTopics }, {
+    return successResponse({ snapshot, cached: false, seededTopics, solvesRecorded, historyWarning }, {
       requestId: requestIdFrom(request),
       headers: rateLimitHeaders(limit),
     });

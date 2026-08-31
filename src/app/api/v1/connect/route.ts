@@ -1,10 +1,10 @@
 import { Platform } from "@prisma/client";
 import { z } from "zod";
 import { ApiError, handleApiError, requestIdFrom, successResponse } from "@/lib/api-response";
-import { db } from "@/lib/db";
+import { requireCompleteUser } from "@/lib/auth";
 import { UpstreamServiceError } from "@/lib/http";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
-import { clientAddress } from "@/lib/request-security";
+import { assertSameOrigin } from "@/lib/request-security";
 import { connectPlatformHandle, type ConnectResult } from "@/lib/services/handle-onboarding";
 
 export const runtime = "nodejs";
@@ -34,7 +34,9 @@ const bodySchema = z
  */
 export async function POST(request: Request) {
   try {
-    const limit = await rateLimit(clientAddress(request), {
+    assertSameOrigin(request);
+    const user = await requireCompleteUser();
+    const limit = await rateLimit(user.id, {
       namespace: "connect",
       limit: 10,
       windowMs: 60 * 60 * 1_000,
@@ -51,18 +53,6 @@ export async function POST(request: Request) {
     }
 
     const { leetcode, codeforces } = parsed.data;
-    // Identity is the handle pair, so returning users land on the same account.
-    const identityEmail = `${(leetcode ?? "none").toLowerCase()}+${(codeforces ?? "none").toLowerCase()}@handles.local`;
-
-    const user = await db.user.upsert({
-      where: { email: identityEmail },
-      create: {
-        email: identityEmail,
-        name: leetcode ?? codeforces ?? "Guest",
-        emailVerified: new Date(),
-      },
-      update: { lastLoginAt: new Date() },
-    });
 
     const results: ConnectResult[] = [];
     const failures: Array<{ platform: string; message: string }> = [];

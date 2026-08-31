@@ -152,6 +152,11 @@ export async function fetchCodeforcesStats(handle: string): Promise<PlatformStat
     }
   }
 
+  const solvedByTag = [...tagBuckets.entries()].map(([tagSlug, keys]) => ({
+    tagSlug,
+    solved: keys.size,
+  }));
+
   return {
     platform: Platform.CODEFORCES,
     handle: profile.handle,
@@ -163,15 +168,13 @@ export async function fetchCodeforcesStats(handle: string): Promise<PlatformStat
     rating: profile.rating ?? null,
     ranking: null,
     reputation: null,
-    solvedByTag: [...tagBuckets.entries()].map(([tagSlug, keys]) => ({
-      tagSlug,
-      solved: keys.size,
-    })),
+    solvedByTag,
     raw: {
       totalSolved: accepted.size,
       rating: profile.rating ?? null,
       maxRating: profile.maxRating ?? null,
       rank: profile.rank ?? null,
+      solvedByTag,
     },
   };
 }

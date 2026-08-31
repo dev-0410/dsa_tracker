@@ -82,8 +82,12 @@ export default async function SettingsPage() {
     stats: identity.snapshots[0]
       ? {
           totalSolved: identity.snapshots[0].totalSolved,
+          easySolved: identity.snapshots[0].easySolved,
+          mediumSolved: identity.snapshots[0].mediumSolved,
+          hardSolved: identity.snapshots[0].hardSolved,
           rating: identity.snapshots[0].rating,
           ranking: identity.snapshots[0].ranking,
+          reputation: identity.snapshots[0].reputation,
         }
       : null,
   }));

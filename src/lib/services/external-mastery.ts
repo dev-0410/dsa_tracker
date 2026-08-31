@@ -46,36 +46,56 @@ export async function seedMasteryFromPlatform(options: {
       select: { experienceLevel: true },
     }),
     db.topic.findMany({
-      where: { slug: { in: evidence.map((item) => item.topicSlug) } },
       select: { id: true, slug: true },
     }),
   ]);
 
   const priorTheta = EXPERIENCE_PRIOR[profile?.experienceLevel ?? "INTERMEDIATE"] ?? -0.25;
-  const topicIdBySlug = new Map(topics.map((topic) => [topic.slug, topic.id]));
+  const evidenceBySlug = new Map(evidence.map((item) => [item.topicSlug, item]));
 
   // Topics with in-app history are left untouched.
   const existing = await db.userTopicMastery.findMany({
     where: { userId: options.userId },
-    select: { topicId: true, attemptCount: true },
+    select: { topicId: true, attemptCount: true, theta: true },
   });
-  const practisedInApp = new Set(
-    existing.filter((row) => row.attemptCount > 0).map((row) => row.topicId),
-  );
+  const existingByTopicId = new Map(existing.map((row) => [row.topicId, row]));
+  let evidenceWrites = 0;
 
-  const writes = evidence.flatMap((item) => {
-    const topicId = topicIdBySlug.get(item.topicSlug);
-    if (!topicId || practisedInApp.has(topicId)) return [];
+  const writes = topics.flatMap((topic) => {
+    const current = existingByTopicId.get(topic.id);
+    if (current && current.attemptCount > 0) return [];
+    const item = evidenceBySlug.get(topic.slug);
+
+    if (!item) {
+      if (current) return [];
+      return [
+        db.userTopicMastery.create({
+          data: {
+            userId: options.userId,
+            topicId: topic.id,
+            theta: priorTheta,
+            mastery: masteryFromTheta(priorTheta),
+            uncertainty: 1,
+            attemptCount: 0,
+            effectiveSuccess: 0,
+          },
+        }),
+      ];
+    }
 
     const theta = thetaFromSolvedCount(item.solved, priorTheta);
-    if (theta <= priorTheta) return [];
+    // Keep the strongest external signal when multiple platforms map to the
+    // same topic, and do not relabel a stated prior as imported evidence when
+    // the solved count does not improve it.
+    if (theta <= priorTheta || (current && current.theta >= theta)) return [];
+    evidenceWrites += 1;
 
     return [
       db.userTopicMastery.upsert({
-        where: { userId_topicId: { userId: options.userId, topicId } },
+        where: { userId_topicId: { userId: options.userId, topicId: topic.id } },
         create: {
           userId: options.userId,
-          topicId,
+          topicId: topic.id,
           theta,
           mastery: masteryFromTheta(theta),
           // External counts are weaker evidence than a logged attempt, so
@@ -94,7 +114,7 @@ export async function seedMasteryFromPlatform(options: {
     ];
   });
 
-  if (writes.length === 0) return 0;
+  if (writes.length === 0) return evidenceWrites;
   await db.$transaction(writes);
-  return writes.length;
+  return evidenceWrites;
 }

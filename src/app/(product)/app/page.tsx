@@ -34,6 +34,7 @@ export default async function TodayPage() {
   ]);
   const recommendations = feed.items.map(toRecommendationViewModel);
   const primary = recommendations[0];
+  const primaryIntegration = analytics.integrations.find((integration) => integration.stats);
   const dateLabel = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
@@ -106,7 +107,13 @@ export default async function TodayPage() {
           <div className="grid grid-cols-2 gap-3">
             <MetricCard label="Reviews due" value={analytics.summary.dueReviews} icon="queue" tone={analytics.summary.dueReviews ? "warning" : "success"} helper={analytics.summary.dueReviews ? "Included in your queue" : "Nothing overdue"} />
             <MetricCard label="Accuracy" value={`${Math.round(analytics.summary.accuracy * 100)}%`} icon="mastery" tone="info" helper="Meaningful attempts" />
-            <MetricCard label="Solved total" value={analytics.summary.totalSolved} icon="solved" tone="success" helper="Tracked by Invariant" />
+            <MetricCard
+              label={primaryIntegration ? `${primaryIntegration.platform === "LEETCODE" ? "LeetCode" : "Codeforces"} solved` : "Solved total"}
+              value={primaryIntegration?.stats?.totalSolved ?? analytics.summary.totalSolved}
+              icon="solved"
+              tone="success"
+              helper={primaryIntegration ? `Imported from @${primaryIntegration.handle}` : "Tracked by Invariant"}
+            />
             <MetricCard label="Avg. solve" value={`${analytics.summary.averageSolveMinutes}m`} icon="time" helper="Accepted attempts" />
           </div>
 
@@ -120,7 +127,14 @@ export default async function TodayPage() {
             </div>
             <div className="mt-4 space-y-3">
               {analytics.mastery.slice(0, 3).map((topic) => (
-                <MasteryBar key={topic.topicId} topic={topic.topic} percent={topic.mastery * 100} attemptCount={topic.attempts} compact />
+                <MasteryBar
+                  key={topic.topicId}
+                  topic={topic.topic}
+                  percent={topic.mastery * 100}
+                  attemptCount={topic.evidence === "IN_APP" ? topic.attempts : undefined}
+                  evidenceLabel={topic.evidence === "PLATFORM" ? "Imported profile" : topic.evidence === "PRIOR" ? "Starting estimate" : undefined}
+                  compact
+                />
               ))}
             </div>
           </section>
