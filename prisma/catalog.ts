@@ -49,6 +49,9 @@ export const topicSeeds: TopicSeed[] = [
   { slug: "matrix", name: "Matrices", description: "Grid traversal and in-place matrix transforms.", sortOrder: 270 },
   { slug: "bit-manipulation", name: "Bit manipulation", description: "Masks, XOR properties, and binary arithmetic.", sortOrder: 280 },
   { slug: "math", name: "Math", description: "Number properties, combinatorics, and algebraic reasoning.", sortOrder: 290 },
+  { slug: "segment-tree", name: "Segment trees", description: "Range queries and point updates over mutable arrays.", sortOrder: 300 },
+  { slug: "shortest-path", name: "Shortest paths", description: "Weighted traversal with Dijkstra, Bellman-Ford, and Floyd-Warshall.", sortOrder: 310 },
+  { slug: "string-matching", name: "String matching", description: "Substring search, KMP failure functions, and rolling hashes.", sortOrder: 320 },
 ];
 
 export const prerequisiteSeeds: Array<[topic: string, prerequisite: string]> = [
@@ -68,6 +71,9 @@ export const prerequisiteSeeds: Array<[topic: string, prerequisite: string]> = [
   ["dynamic-programming", "recursion"],
   ["intervals", "sorting"],
   ["matrix", "arrays"],
+  ["segment-tree", "trees"],
+  ["shortest-path", "graphs"],
+  ["string-matching", "strings"],
 ];
 
 const problem = (

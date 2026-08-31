@@ -25,6 +25,14 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+# any env backup/copy — these carry real secrets
+.env.bak*
+.env.backup*
+.env.*.bak
+*.env.local
+
+# google oauth credentials
+client_secret_*.json
 
 # vercel
 .vercel

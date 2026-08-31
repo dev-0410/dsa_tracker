@@ -1,0 +1,100 @@
+import "server-only";
+
+import { Platform } from "@prisma/client";
+import { db } from "@/lib/db";
+import { aggregateTopicEvidence, thetaFromSolvedCount } from "@/lib/platforms/topic-mapping";
+import type { PlatformStats } from "@/lib/platforms";
+
+const EXPERIENCE_PRIOR: Record<string, number> = {
+  BEGINNER: -1.25,
+  INTERMEDIATE: -0.25,
+  ADVANCED: 0.65,
+};
+
+function masteryFromTheta(theta: number): number {
+  const clamped = Math.min(3, Math.max(-3, theta));
+  return 1 / (1 + Math.exp(-clamped));
+}
+
+/**
+ * Seeds per-topic mastery from a platform's solved-per-topic counts.
+ *
+ * Only topics the user has never practised in-app are written. In-app attempts
+ * carry outcome, duration, and hint data that a bare external count cannot, so
+ * they always win — this exists to remove the cold start, not to override
+ * evidence the app collected itself.
+ *
+ * Returns the number of topics seeded.
+ */
+export async function seedMasteryFromPlatform(options: {
+  userId: string;
+  platform: Platform;
+  stats: PlatformStats;
+}): Promise<number> {
+  const solvedByTag = options.stats.solvedByTag ?? [];
+  if (solvedByTag.length === 0) return 0;
+
+  const evidence = aggregateTopicEvidence(
+    options.platform === Platform.LEETCODE ? "LEETCODE" : "CODEFORCES",
+    solvedByTag,
+  );
+  if (evidence.length === 0) return 0;
+
+  const [profile, topics] = await Promise.all([
+    db.userProfile.findUnique({
+      where: { userId: options.userId },
+      select: { experienceLevel: true },
+    }),
+    db.topic.findMany({
+      where: { slug: { in: evidence.map((item) => item.topicSlug) } },
+      select: { id: true, slug: true },
+    }),
+  ]);
+
+  const priorTheta = EXPERIENCE_PRIOR[profile?.experienceLevel ?? "INTERMEDIATE"] ?? -0.25;
+  const topicIdBySlug = new Map(topics.map((topic) => [topic.slug, topic.id]));
+
+  // Topics with in-app history are left untouched.
+  const existing = await db.userTopicMastery.findMany({
+    where: { userId: options.userId },
+    select: { topicId: true, attemptCount: true },
+  });
+  const practisedInApp = new Set(
+    existing.filter((row) => row.attemptCount > 0).map((row) => row.topicId),
+  );
+
+  const writes = evidence.flatMap((item) => {
+    const topicId = topicIdBySlug.get(item.topicSlug);
+    if (!topicId || practisedInApp.has(topicId)) return [];
+
+    const theta = thetaFromSolvedCount(item.solved, priorTheta);
+    if (theta <= priorTheta) return [];
+
+    return [
+      db.userTopicMastery.upsert({
+        where: { userId_topicId: { userId: options.userId, topicId } },
+        create: {
+          userId: options.userId,
+          topicId,
+          theta,
+          mastery: masteryFromTheta(theta),
+          // External counts are weaker evidence than a logged attempt, so
+          // uncertainty stays high and attemptCount stays 0 — the exploration
+          // term should still consider these topics worth probing.
+          uncertainty: 0.75,
+          attemptCount: 0,
+          effectiveSuccess: 0,
+        },
+        update: {
+          theta,
+          mastery: masteryFromTheta(theta),
+          uncertainty: 0.75,
+        },
+      }),
+    ];
+  });
+
+  if (writes.length === 0) return 0;
+  await db.$transaction(writes);
+  return writes.length;
+}

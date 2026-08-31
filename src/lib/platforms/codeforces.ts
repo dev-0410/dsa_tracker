@@ -30,11 +30,82 @@ const submissionsSchema = z.object({
           contestId: z.number().int().optional(),
           index: z.string(),
           rating: z.number().int().optional(),
+          tags: z.array(z.string()).optional(),
         }),
       }),
     )
     .optional(),
 });
+
+const solveHistorySchema = z.object({
+  status: z.enum(["OK", "FAILED"]),
+  result: z
+    .array(
+      z.object({
+        verdict: z.string().optional(),
+        creationTimeSeconds: z.number().int().optional(),
+        problem: z.object({
+          contestId: z.number().int().optional(),
+          index: z.string(),
+          tags: z.array(z.string()).optional(),
+        }),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * Full accepted-submission history. Unlike LeetCode, Codeforces returns every
+ * submission, so this is a complete solved set and also yields per-topic counts.
+ */
+export async function fetchCodeforcesSolveHistory(handle: string): Promise<{
+  solves: Array<{ problemKey: string; solvedAt: Date | null }>;
+  solvedByTag: Array<{ tagSlug: string; solved: number }>;
+}> {
+  const url = new URL("https://codeforces.com/api/user.status");
+  url.searchParams.set("handle", handle);
+  url.searchParams.set("from", "1");
+  url.searchParams.set("count", "10000");
+
+  const response = await fetchValidatedJson(url, {}, {
+    schema: solveHistorySchema,
+    timeoutMs: 15_000,
+    maxBytes: 10_000_000,
+  });
+  if (response.status !== "OK") {
+    throw new UpstreamServiceError("BAD_RESPONSE", "Codeforces did not return submission history.");
+  }
+
+  const firstSolvedAt = new Map<string, Date | null>();
+  const tagCounts = new Map<string, Set<string>>();
+
+  for (const submission of response.result ?? []) {
+    if (submission.verdict !== "OK") continue;
+    const key = `${submission.problem.contestId ?? "gym"}-${submission.problem.index}`;
+    const solvedAt = submission.creationTimeSeconds
+      ? new Date(submission.creationTimeSeconds * 1_000)
+      : null;
+
+    const existing = firstSolvedAt.get(key);
+    if (existing === undefined || (solvedAt && existing && solvedAt < existing)) {
+      firstSolvedAt.set(key, solvedAt);
+    }
+    // Count each solved problem once per tag.
+    for (const tag of submission.problem.tags ?? []) {
+      const bucket = tagCounts.get(tag) ?? new Set<string>();
+      bucket.add(key);
+      tagCounts.set(tag, bucket);
+    }
+  }
+
+  return {
+    solves: [...firstSolvedAt.entries()].map(([problemKey, solvedAt]) => ({ problemKey, solvedAt })),
+    solvedByTag: [...tagCounts.entries()].map(([tagSlug, keys]) => ({
+      tagSlug,
+      solved: keys.size,
+    })),
+  };
+}
 
 export async function fetchCodeforcesStats(handle: string): Promise<PlatformStats> {
   const infoUrl = new URL("https://codeforces.com/api/user.info");
@@ -61,11 +132,25 @@ export async function fetchCodeforcesStats(handle: string): Promise<PlatformStat
     throw new UpstreamServiceError("BAD_RESPONSE", "Codeforces did not return submission history.");
   }
 
-  const accepted = new Set(
-    (submissions.result ?? [])
-      .filter((submission) => submission.verdict === "OK")
-      .map((submission) => `${submission.problem.contestId ?? "gym"}-${submission.problem.index}`),
+  const acceptedSubmissions = (submissions.result ?? []).filter(
+    (submission) => submission.verdict === "OK",
   );
+  const accepted = new Set(
+    acceptedSubmissions.map(
+      (submission) => `${submission.problem.contestId ?? "gym"}-${submission.problem.index}`,
+    ),
+  );
+
+  // Per-topic counts, so Codeforces can seed mastery the same way LeetCode does.
+  const tagBuckets = new Map<string, Set<string>>();
+  for (const submission of acceptedSubmissions) {
+    const key = `${submission.problem.contestId ?? "gym"}-${submission.problem.index}`;
+    for (const tag of submission.problem.tags ?? []) {
+      const bucket = tagBuckets.get(tag) ?? new Set<string>();
+      bucket.add(key);
+      tagBuckets.set(tag, bucket);
+    }
+  }
 
   return {
     platform: Platform.CODEFORCES,
@@ -78,6 +163,10 @@ export async function fetchCodeforcesStats(handle: string): Promise<PlatformStat
     rating: profile.rating ?? null,
     ranking: null,
     reputation: null,
+    solvedByTag: [...tagBuckets.entries()].map(([tagSlug, keys]) => ({
+      tagSlug,
+      solved: keys.size,
+    })),
     raw: {
       totalSolved: accepted.size,
       rating: profile.rating ?? null,

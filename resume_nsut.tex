@@ -1,0 +1,142 @@
+\documentclass[a4paper,11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=0.4in,top=0.25in,bottom=0.25in,includefoot=false,footskip=0pt]{geometry}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage[colorlinks=true, urlcolor=black, linkcolor=black]{hyperref}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+\pagestyle{empty}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\setlength{\footskip}{0pt}
+
+\setlength{\parindent}{0pt}
+\definecolor{barGray}{gray}{0.82}
+
+% Grey section bar, matching the NSUT template
+\newcommand{\sectionbar}[1]{%
+  \vspace{4pt}%
+  \noindent\colorbox{barGray}{%
+    \parbox{\dimexpr\textwidth-2\fboxsep\relax}{%
+      \textbf{\footnotesize\hspace{2pt}\MakeUppercase{\letterspace{#1}}}%
+    }%
+  }\vspace{3pt}%
+}
+
+% Letter-spacing helper (no external package needed)
+\newcommand{\letterspace}[1]{#1}
+
+% Subtle tracking for the name: wide enough to read as a header, not sprawling
+\usepackage{soul}
+\sodef\spacedname{}{0.14em}{0.5em}{0.5em}
+
+\newlist{tight}{itemize}{1}
+\setlist[tight]{leftmargin=1.6em, itemsep=0pt, topsep=1pt, parsep=0pt, label=$\bullet$}
+
+\begin{document}
+
+%---------- HEADING ----------
+% Logo left, header centred on the full page width. The trailing column mirrors
+% the logo column so the middle column's centre lands on the page centre.
+\noindent
+\begin{tabular}{@{}m{1.65cm}@{}m{\dimexpr\textwidth-3.3cm\relax}@{}m{1.65cm}@{}}
+\includegraphics[width=\linewidth]{nsut-logo.jpg}
+&
+\begin{minipage}{\linewidth}
+  \centering
+  {\LARGE\bfseries\spacedname{ESHA TANDON}}\\[3pt]
+  {\small New Delhi \textbar{} \href{mailto:esha.tandon.ug23@nsut.ac.in}{esha.tandon.ug23@nsut.ac.in} \textbar{} +91-7042448879}\\[4pt]
+  {\footnotesize
+    \href{https://leetcode.com/u/Esha_10_Tandon/}{leetcode.com/u/Esha\_10\_Tandon} \textbar{}
+    \href{https://github.com/dev-0410}{github.com/dev-0410} \textbar{}
+    \href{https://esha-portfolio-ecru.vercel.app/}{esha-portfolio-ecru.vercel.app}\\[1pt]
+    \href{https://www.linkedin.com/in/esha-tandon-b7b183357}{linkedin.com/in/esha-tandon-b7b183357}}
+\end{minipage}
+&
+\end{tabular}
+
+%---------- EDUCATION ----------
+\sectionbar{Education}
+
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{158pt}|>{\centering\arraybackslash}p{50pt}|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{57pt}|}
+\hline
+B.Tech in Electrical Engineering & 2023-2027 & Netaji Subhas University of Technology & 7.76 CGPA \\ \hline
+CBSE (Class XII) & 2023 & Sadhu Vaswani International School for Girls & 93.4\% \\ \hline
+CBSE (Class X) & 2021 & Sadhu Vaswani International School for Girls & 97.8\% \\ \hline
+\end{tabularx}
+
+%---------- INTERNSHIPS ----------
+\sectionbar{Internship/s}
+
+\textbf{SDE Intern, Stealth AI Startup (Remote)} \hfill \textbf{May-26 to Jul-26}
+\begin{tight}
+  \item Built \textbf{retrieval-augmented (RAG) workflows} for internal knowledge tools, improving answer grounding and cutting unsupported responses in testing.
+  \item Shaped multi-tenant ingestion flows: document chunking, embeddings, and \textbf{secure tenant isolation} for reliable retrieval.
+  \item Shipped frontend and API surfaces in React, FastAPI, and PostgreSQL, turning research ideas into production features.
+\end{tight}
+
+%---------- ACADEMIC PROJECTS ----------
+\sectionbar{Academic Projects}
+
+\textbf{SIRGOBLIN --- AI Code Safety Platform} \textbar{} Python, MCP, CI/CD \textbar{} \href{https://github.com/Pheonix-dev0410/harness}{GitHub}
+\begin{tight}
+  \item Blocks unsafe AI-generated code before production, \textbf{scanning 100K lines in 22 seconds} across 52 rules from real outage postmortems.
+  \item Built an \textbf{MCP server} exposing 7 verification tools over JSON-RPC, letting AI agents verify their own work mid-task.
+  \item \textbf{Cut AI review costs 4$\times$} via model routing and batching; \textbf{raised detection accuracy 26\%} auditing 8 open-source codebases.
+\end{tight}
+\vspace{5pt}
+
+\textbf{INVARIANT --- Adaptive DSA Practice Platform} \textbar{} Next.js, TypeScript, PostgreSQL \textbar{} \href{https://github.com/Pheonix-dev0410/dsa_tracker}{GitHub}
+\begin{tight}
+  \item Tells users \textbf{which coding problem to solve next, and why}, replacing static problem lists across \textbf{32 DSA topics}.
+  \item Built an \textbf{adaptive recommendation engine} blending \textbf{5 signals}, led by an Item Response Theory model predicting per-user solve probability.
+  \item Added \textbf{multi-armed bandit (UCB) exploration} and \textbf{FSRS} memory-decay modeling to time reviews before forgetting.
+\end{tight}
+\vspace{5pt}
+
+\textbf{NEXUS RAG --- Multi-Tenant Agentic RAG Platform} \textbar{} FastAPI, pgvector, PostgreSQL \textbar{} \href{https://github.com/dev-0410/nexus-rag}{GitHub}
+\begin{tight}
+  \item Multi-tenant agentic RAG platform with \textbf{bring-your-own-key sovereignty} for querying private document corpora.
+  \item Designed autonomous retrieval using \textbf{hybrid pgvector and full-text search} for high recall over private data.
+  \item Unified ingestion across \textbf{4 formats} (PDF, Markdown, PPTX, images) with chunking, embedding, and answer grounding.
+\end{tight}
+
+%---------- ACHIEVEMENTS ----------
+\sectionbar{Academic Achievements and Awards}
+\begin{tight}
+  \item Solved \textbf{400+ data structures and algorithms problems} across LeetCode and other practice platforms.
+\end{tight}
+
+%---------- TECHNICAL SKILLS ----------
+\sectionbar{Technical Skills}
+\begin{tight}
+  \item \textbf{Programming Languages :} C++ (Proficient), Python (Proficient), Java, JavaScript, TypeScript
+  \item \textbf{Web Technologies :} React, Next.js, HTML, CSS, shadcn/ui
+  \item \textbf{Backend \& Databases :} FastAPI, REST APIs, PostgreSQL, Prisma, Supabase, pgvector, NextAuth, Docker
+  \item \textbf{GenAI \& ML :} RAG, Agentic Workflows, Generative AI, MCP
+  \item \textbf{Core Subjects :} Data Structures \& Algorithms, OOP, DBMS, Operating Systems, Computer Networks, System Design 
+\end{tight}
+
+%---------- POSITIONS OF RESPONSIBILITY ----------
+\sectionbar{Positions of Responsibility}
+\begin{tight}
+  \item Member of \textbf{NSUT.AI}, the Artificial Intelligence \& Machine Learning society of NSUT.
+\end{tight}
+
+%---------- EXTRA-CURRICULAR ----------
+\sectionbar{Extra-Curricular Activities and Interests}
+\begin{tight}
+  \item Active competitive programmer on LeetCode and other practice platforms.
+  \item Interests: Reading.
+\end{tight}
+
+\end{document}

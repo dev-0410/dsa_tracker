@@ -172,6 +172,21 @@ describe('feature scoring', () => {
     expect(calculateUcbExploration(0, 200)).toBeLessThanOrEqual(1);
   });
 
+  it('treats a topic the user has practised as explored regardless of impressions', () => {
+    const practisedElsewhere = score(problem('graphs-a', 'graphs'), {
+      mastery: [{ topicId: 'graphs', theta: 0.4, attemptCount: 120 }],
+    });
+    const untouched = score(problem('trie-a', 'trie'), {
+      mastery: [{ topicId: 'graphs', theta: 0.4, attemptCount: 120 }],
+    });
+
+    // A user who arrives having already solved 120 graph problems must not be
+    // told graphs are under-explored just because this app never served them.
+    expect(practisedElsewhere.components.exploration).toBeLessThan(
+      untouched.components.exploration,
+    );
+  });
+
   it('rejects invalid weight configurations instead of silently changing semantics', () => {
     expect(() => resolveConfig({ weights: { need: 0.9 } })).toThrow(/sum to 1/);
   });
@@ -367,6 +382,16 @@ describe('recommendation orchestration', () => {
           topicId: candidate.topics[0].topicId,
           priority: 1,
         })),
+        // Exploration keys on practice evidence, so the under-explored topic is
+        // the one with no logged attempts rather than the one never displayed.
+        topicMastery: [
+          { topicId: 'arrays', theta: -0.25, attemptCount: 40 },
+          { topicId: 'graphs', theta: -0.25, attemptCount: 30 },
+          { topicId: 'trees', theta: -0.25, attemptCount: 24 },
+          { topicId: 'dp', theta: -0.25, attemptCount: 18 },
+          { topicId: 'heap', theta: -0.25, attemptCount: 12 },
+          { topicId: 'stack', theta: -0.25, attemptCount: 0 },
+        ],
         topicBehavior: [
           { topicId: 'arrays', impressions: 100, starts: 70, completions: 50, dismissals: 1 },
           { topicId: 'graphs', impressions: 80, starts: 50, completions: 40, dismissals: 1 },

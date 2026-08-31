@@ -126,6 +126,7 @@ model User {
   recommendationEvents RecommendationEvent[]
   studyPlans           StudyPlan[]
   activity             DailyActivity[]
+  externalSolves       ExternalSolve[]
 }
 
 model Account {
@@ -216,6 +217,30 @@ model PlatformIdentity {
   @@index([platform, normalizedHandle])
   @@index([userId])
   @@index([status, nextSyncAt])
+}
+
+/**
+ * Problems a user solved on an external platform.
+ *
+ * LeetCode only exposes the 20 most recent accepted submissions, so this table
+ * fills in over time rather than ever being complete. It is used to avoid
+ * recommending finished work and to confirm a recommendation was actually
+ * solved. `source` records how we learned about it.
+ */
+model ExternalSolve {
+  id         String   @id @default(cuid())
+  userId     String
+  platform   Platform
+  /** Platform-native problem identifier: LeetCode titleSlug, or "contestId-index". */
+  problemKey String
+  solvedAt   DateTime?
+  source     String   @default("RECENT_SUBMISSIONS")
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform, problemKey])
+  @@index([userId, platform])
 }
 
 model PlatformSnapshot {

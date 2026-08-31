@@ -1,0 +1,158 @@
+%-------------------------
+% Resume in Latex
+% Based on template by Madhurjya Gogoi
+%------------------------
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[colorlinks=true, urlcolor=black, linkcolor=black, citecolor=black]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage{fontawesome5}
+\usepackage{multicol}
+\setlength{\multicolsep}{-3.0pt}
+\setlength{\columnsep}{-1pt}
+\input{glyphtounicode}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\footskip}{4.08003pt}
+
+\addtolength{\oddsidemargin}{-0.7in}
+\addtolength{\evensidemargin}{-0.6in}
+\addtolength{\textwidth}{1.4in}
+\addtolength{\topmargin}{-.9in}
+\addtolength{\textheight}{1.8in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-6pt}\scshape\raggedright\large\bfseries
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\pdfgentounicode=1
+
+\newcommand{\resumeItem}[1]{\item{{#1 \vspace{-1pt}}}}
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{1.0\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & \textbf{\small #2} \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-6pt}
+}
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{1.0\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & \textbf{\small #2}\\
+    \end{tabular*}\vspace{-6pt}
+}
+\newcommand{\resumeItemListStart}{\begin{itemize}[itemsep=1.5pt, parsep=0pt, topsep=2pt]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-6pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.0in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    {\Huge \scshape Esha Tandon} \\ \vspace{4pt}
+    \small \faMapMarker\ New Delhi ~
+    \href{mailto:esha.tandon.ug23@nsut.ac.in}{\faEnvelope\ \underline{esha.tandon.ug23@nsut.ac.in}} ~
+    \href{https://www.linkedin.com/in/esha-tandon-b7b183357}{\faLinkedin\ \underline{LinkedIn}} ~
+    \href{https://github.com/dev-0410}{\faGithub\ \underline{GitHub}} ~
+    \href{https://esha-portfolio-ecru.vercel.app/}{\faGlobe\ \underline{Portfolio}} ~
+    \href{https://leetcode.com/u/Esha_10_Tandon/}{\faCode\ \underline{LeetCode}}
+\end{center}
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {Netaji Subhas University of Technology}{2023 -- 2027}
+    {B.Tech in Electrical Engineering \textbar{} CGPA: 7.76/10}{Delhi}
+\resumeSubHeadingListEnd
+
+%-----------EXPERIENCE-----------
+\section{Experience}
+\resumeSubHeadingListStart
+  \resumeSubheading
+    {SDE Intern}{May 2026 -- Jul 2026}
+    {Stealth AI Startup (Remote)}{React, FastAPI, PostgreSQL}
+    \resumeItemListStart
+      \resumeItem{Built \textbf{retrieval-augmented workflows} for internal knowledge tools, improving answer grounding and cutting unsupported responses in testing.}
+      \resumeItem{Shaped multi-tenant ingestion: document chunking, embeddings, and \textbf{secure tenant isolation} for reliable retrieval.}
+      \resumeItem{Shipped frontend and API surfaces in React, FastAPI, and PostgreSQL, turning research ideas into production features.}
+    \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+  \resumeProjectHeading
+      {\textbf{SirGoblin} $|$ \emph{AI Code Safety Platform} $|$ \small Python, MCP, CI/CD $|$ \href{https://github.com/Pheonix-dev0410/harness}{\underline{GitHub}}}{}
+      \resumeItemListStart
+        \resumeItem{Blocks unsafe AI-generated code before production, \textbf{scanning 100K lines in 22 seconds} across 52 rules from real outage postmortems.}
+        \resumeItem{Built an \textbf{MCP server} exposing 7 verification tools over JSON-RPC, letting AI agents check their own work mid-task.}
+        \resumeItem{\textbf{Cut AI review costs 4$\times$} via model routing and batching (est. \$1,000+/month saved), and \textbf{raised accuracy 26\%} auditing 8 open-source codebases.}
+        \resumeItem{Architected solo from empty repo to \textbf{v0.1.0 release}: rule engine, contract graph, cost tracking, and CI/CD (\textbf{42K lines}, open source).}
+      \resumeItemListEnd\vspace{-2pt}
+
+  \resumeProjectHeading
+      {\textbf{Invariant} $|$ \emph{Adaptive DSA Practice Platform} $|$ \small Next.js, TypeScript, PostgreSQL $|$ \href{https://github.com/Pheonix-dev0410/dsa_tracker}{\underline{GitHub}}}{}
+      \resumeItemListStart
+        \resumeItem{Tells users \textbf{which coding problem to solve next, and why}, replacing static problem lists across \textbf{32 DSA topics}.}
+        \resumeItem{Built an \textbf{adaptive recommendation engine} blending \textbf{5 signals}, led by an Item Response Theory model predicting per-user solve probability.}
+        \resumeItem{Added \textbf{multi-armed bandit (UCB) exploration} for topic discovery, and \textbf{FSRS} memory-decay modeling to time reviews before forgetting.}
+        \resumeItem{Shipped \textbf{13K+ lines} solo: 21-model Prisma schema, \textbf{17 REST endpoints}, Google OAuth, LeetCode/Codeforces sync, Docker, and CI.}
+      \resumeItemListEnd\vspace{-2pt}
+
+  \resumeProjectHeading
+      {\textbf{Nexus RAG} $|$ \emph{Multi-Tenant Agentic RAG Platform} $|$ \small FastAPI, pgvector, PostgreSQL $|$ \href{https://github.com/dev-0410/nexus-rag}{\underline{GitHub}}}{}
+      \resumeItemListStart
+        \resumeItem{Multi-tenant agentic RAG platform with \textbf{bring-your-own-key sovereignty} for querying private document corpora.}
+        \resumeItem{Designed autonomous retrieval using \textbf{hybrid pgvector and full-text search} for high recall over private data.}
+        \resumeItem{Unified ingestion across \textbf{4 formats} (PDF, Markdown, PPTX, images) with chunking, embedding, and answer grounding.}
+      \resumeItemListEnd
+\resumeSubHeadingListEnd
+
+%-----------ACHIEVEMENTS-----------
+\section{Achievements}
+\resumeSubHeadingListStart
+\item[]
+\begin{itemize}[leftmargin=0.15in, itemsep=1pt, topsep=2pt]
+  \small
+  \item \textbf{Top 200 nationally} in the Amazon ML Challenge, 2025.
+  \item Solved \textbf{400+ data structures and algorithms problems} across LeetCode and other practice platforms.
+  \item Qualified for \textbf{Round 3} of EY Techathon 2025 and \textbf{Round 3} of Smart India Hackathon 2025.
+\end{itemize}
+\resumeSubHeadingListEnd
+\vspace{-6pt}
+
+%-----------SKILLS-----------
+\section{Skills \& Interests}
+\small{
+\textbf{Languages:} C++, Java, Python, JavaScript, TypeScript \\
+\textbf{Web:} React, Next.js, HTML, CSS, shadcn/ui \\
+\textbf{Backend \& Data:} FastAPI, REST APIs, PostgreSQL, Prisma, Supabase, pgvector, NextAuth, Docker \\
+\textbf{GenAI \& ML:} RAG, Agentic Workflows, Generative AI, MCP \\
+\textbf{Core:} Data Structures \& Algorithms, OOP, DBMS, Operating Systems, Computer Networks, Signals \& Systems \\
+\textbf{Interests:} Problem Solving, Building AI Products, Reading
+}
+
+\end{document}

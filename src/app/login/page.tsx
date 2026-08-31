@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { GoogleSignInPanel } from "@/components/marketing";
 import { SkipLink } from "@/components/ui";
+import { isDevAuthBypassEnabled } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -32,7 +33,7 @@ export default function LoginPage() {
     <>
       <SkipLink />
       <Suspense fallback={<SignInFallback />}>
-        <GoogleSignInPanel />
+        <GoogleSignInPanel devBypass={isDevAuthBypassEnabled} />
       </Suspense>
     </>
   );

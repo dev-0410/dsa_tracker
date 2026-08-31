@@ -80,12 +80,18 @@ export function calculateBehaviorAffinity(signal?: TopicBehaviorSignal): number 
 /**
  * Deterministic UCB exploration bonus. It gives new topics a boost without
  * introducing a recommendation that changes on every render.
+ *
+ * The counts must describe evidence the user produced (logged attempts), not
+ * slates the engine served. Keying this on impressions made the term
+ * self-referential: a topic counted as explored because it had been displayed,
+ * so a user arriving with existing practice history was treated as unexplored
+ * everywhere while a topic they ignored stopped being explored.
  */
-export function calculateUcbExploration(topicImpressions: number, totalImpressions: number): number {
-  const safeTopicImpressions = Math.max(0, topicImpressions);
-  const safeTotalImpressions = Math.max(safeTopicImpressions, totalImpressions, 0);
+export function calculateUcbExploration(topicAttempts: number, totalAttempts: number): number {
+  const safeTopicAttempts = Math.max(0, topicAttempts);
+  const safeTotalAttempts = Math.max(safeTopicAttempts, totalAttempts, 0);
   const rawBonus = Math.sqrt(
-    (2 * Math.log(safeTotalImpressions + 2)) / (safeTopicImpressions + 1),
+    (2 * Math.log(safeTotalAttempts + 2)) / (safeTopicAttempts + 1),
   );
   return clamp(rawBonus / 2);
 }
@@ -190,20 +196,24 @@ function scoreNeedAndGoal(
 function scoreBehaviorAndExploration(
   problem: RecommendationProblem,
   topicBehavior: TopicBehaviorSignal[],
+  topicMastery: TopicMasteryState[],
 ): { behavior: number; exploration: number } {
   const topics = normalizeTopicWeights(problem.topics);
   const behaviorByTopic = new Map(topicBehavior.map((signal) => [signal.topicId, signal]));
-  const totalImpressions = topicBehavior.reduce(
-    (total, signal) => total + Math.max(0, signal.impressions),
+  const masteryByTopic = new Map(topicMastery.map((state) => [state.topicId, state]));
+  // Engagement rates are a property of what was shown, so behavior keeps using
+  // impressions. Exploration measures what the user has actually practised.
+  const totalAttempts = topicMastery.reduce(
+    (total, state) => total + Math.max(0, state.attemptCount),
     0,
   );
 
   return topics.reduce(
     (result, topic) => {
       const signal = behaviorByTopic.get(topic.topicId);
+      const attempts = Math.max(0, masteryByTopic.get(topic.topicId)?.attemptCount ?? 0);
       result.behavior += topic.weight * calculateBehaviorAffinity(signal);
-      result.exploration +=
-        topic.weight * calculateUcbExploration(signal?.impressions ?? 0, totalImpressions);
+      result.exploration += topic.weight * calculateUcbExploration(attempts, totalAttempts);
       return result;
     },
     { behavior: 0, exploration: 0 },
@@ -353,7 +363,11 @@ export function scoreCandidate(
     input.context,
     input.config,
   );
-  const behaviorAndExploration = scoreBehaviorAndExploration(problem, input.topicBehavior);
+  const behaviorAndExploration = scoreBehaviorAndExploration(
+    problem,
+    input.topicBehavior,
+    input.topicMastery,
+  );
 
   const components: ScoreComponents = {
     need: needAndGoal.need,

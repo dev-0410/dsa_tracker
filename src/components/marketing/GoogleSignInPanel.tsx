@@ -40,7 +40,7 @@ function getSafeCallbackUrl(value: string | null): string {
   return value;
 }
 
-export function GoogleSignInPanel() {
+export function GoogleSignInPanel({ devBypass = false }: { devBypass?: boolean }) {
   const searchParams = useSearchParams();
   const [isPending, setIsPending] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
@@ -56,6 +56,18 @@ export function GoogleSignInPanel() {
       await signIn("google", { callbackUrl });
     } catch {
       setClientError("Google sign-in could not start. Check your connection and try again.");
+      setIsPending(false);
+    }
+  };
+
+  const handleDevSignIn = async () => {
+    setIsPending(true);
+    setClientError(null);
+
+    try {
+      await signIn("dev-bypass", { callbackUrl });
+    } catch {
+      setClientError("Local sign-in failed. Check the dev server logs.");
       setIsPending(false);
     }
   };
@@ -170,6 +182,25 @@ export function GoogleSignInPanel() {
                 </span>
                 <ArrowRightIcon aria-hidden="true" className="h-4 w-4" />
               </Button>
+
+              {devBypass ? (
+                <div className="mt-4 rounded-xl border border-dashed border-[#B4823C] bg-[#FDF6EA] p-4 dark:border-[#7A5A2A] dark:bg-[#231B10]">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#8A5D1B] dark:text-[#D9A75A]">
+                    Local development only
+                  </p>
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant="secondary"
+                    onClick={handleDevSignIn}
+                    disabled={isPending}
+                    aria-busy={isPending}
+                    className="mt-3 w-full justify-center px-4"
+                  >
+                    {isPending ? "Signing in…" : "Skip Google — sign in as local dev user"}
+                  </Button>
+                </div>
+              ) : null}
 
               <p id="sign-in-note" className="mt-4 flex items-start gap-2 text-xs leading-5 text-[#768179] dark:text-[#8F9B92]">
                 <LockClosedIcon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />

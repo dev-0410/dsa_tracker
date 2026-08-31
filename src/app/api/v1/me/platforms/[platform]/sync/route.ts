@@ -6,6 +6,7 @@ import { UpstreamServiceError } from "@/lib/http";
 import { fetchPlatformStats } from "@/lib/platforms";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/request-security";
+import { seedMasteryFromPlatform } from "@/lib/services/external-mastery";
 import { commitPlatformSnapshot, type PlatformIdentityVersion } from "@/lib/services/platform-sync";
 import { invalidatePublicProfileCache } from "@/lib/services/public-profile";
 
@@ -62,9 +63,10 @@ export async function POST(request: Request, context: Context) {
 
     const stats = await fetchPlatformStats(platform, identity.handle);
     const snapshot = await commitPlatformSnapshot({ identity: identityVersion, stats, ttlSeconds });
+    const seededTopics = await seedMasteryFromPlatform({ userId: user.id, platform, stats });
 
     invalidatePublicProfileCache(user.profile.handle);
-    return successResponse({ snapshot, cached: false }, {
+    return successResponse({ snapshot, cached: false, seededTopics }, {
       requestId: requestIdFrom(request),
       headers: rateLimitHeaders(limit),
     });

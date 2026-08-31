@@ -1,6 +1,7 @@
 import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import type { Prisma } from '@prisma/client';
 import { getServerSession, type NextAuthOptions, type Session } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 
 import { ApiError } from '@/lib/api-response';
@@ -33,6 +34,39 @@ export const isAuthConfigured =
 
 const BUILD_FALLBACK = 'not-configured-build-placeholder';
 
+/**
+ * Dev-only credential sign-in, so local work does not require Google OAuth.
+ *
+ * Gated on two independent conditions that both have to hold: the build must
+ * not be production, and DEV_AUTH_BYPASS must be explicitly "true". Setting the
+ * flag in a production build does nothing.
+ */
+export const isDevAuthBypassEnabled =
+  process.env.NODE_ENV !== 'production' && process.env.DEV_AUTH_BYPASS === 'true';
+
+const DEV_USER_EMAIL = process.env.DEV_AUTH_EMAIL?.trim() || 'dev@localhost';
+const DEV_USER_NAME = process.env.DEV_AUTH_NAME?.trim() || 'Local Dev';
+
+const devCredentialsProvider = CredentialsProvider({
+  id: 'dev-bypass',
+  name: 'Local development',
+  credentials: {
+    email: { label: 'Email', type: 'text', placeholder: DEV_USER_EMAIL },
+  },
+  async authorize(credentials) {
+    if (!isDevAuthBypassEnabled) return null;
+
+    const email = credentials?.email?.trim() || DEV_USER_EMAIL;
+    const existing = await db.user.findUnique({ where: { email } });
+    if (existing) return { id: existing.id, email: existing.email, name: existing.name };
+
+    const created = await db.user.create({
+      data: { email, name: DEV_USER_NAME, emailVerified: new Date() },
+    });
+    return { id: created.id, email: created.email, name: created.name };
+  },
+});
+
 export const authOptions = {
   adapter: PrismaAdapter(db),
   providers: [
@@ -46,10 +80,13 @@ export const authOptions = {
         },
       },
     }),
+    ...(isDevAuthBypassEnabled ? [devCredentialsProvider] : []),
   ],
   secret: authSecret || BUILD_FALLBACK,
+  // Credentials sign-in cannot use database sessions, so the bypass switches to
+  // JWT. Production keeps database sessions because the bypass is never on.
   session: {
-    strategy: 'database',
+    strategy: isDevAuthBypassEnabled ? 'jwt' : 'database',
     maxAge: 30 * 24 * 60 * 60,
     updateAge: 24 * 60 * 60,
   },
@@ -60,21 +97,32 @@ export const authOptions = {
   },
   callbacks: {
     async signIn({ account, profile }) {
+      if (isDevAuthBypassEnabled && account?.provider === 'dev-bypass') return true;
+
       return shouldAllowGoogleSignIn({
         configurationReady: isAuthConfigured,
         provider: account?.provider,
         emailVerified: (profile as { email_verified?: boolean } | undefined)?.email_verified,
       });
     },
-    async session({ session, user }) {
+    async jwt({ token, user }) {
+      // Only reached under the dev bypass, where the strategy is JWT.
+      if (user?.id) token.userId = user.id;
+      return token;
+    },
+    async session({ session, user, token }) {
       if (!session.user) return session;
 
+      // Database sessions supply `user`; the dev bypass uses JWT and supplies `token`.
+      const userId = user?.id ?? (token?.userId as string | undefined);
+      if (!userId) return session;
+
       const profile = await db.userProfile.findUnique({
-        where: { userId: user.id },
+        where: { userId },
         select: { handle: true, onboardingCompletedAt: true },
       });
 
-      session.user.id = user.id;
+      session.user.id = userId;
       session.user.handle = profile?.handle ?? null;
       session.user.onboardingComplete = Boolean(profile?.onboardingCompletedAt);
       return session;

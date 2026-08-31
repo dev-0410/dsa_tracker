@@ -21,9 +21,28 @@ const profileQuery = `
           count
         }
       }
+      tagProblemCounts {
+        advanced {
+          tagSlug
+          problemsSolved
+        }
+        intermediate {
+          tagSlug
+          problemsSolved
+        }
+        fundamental {
+          tagSlug
+          problemsSolved
+        }
+      }
     }
   }
 `;
+
+const tagCountSchema = z.object({
+  tagSlug: z.string(),
+  problemsSolved: z.number().int().nonnegative(),
+});
 
 const responseSchema = z.object({
   data: z.object({
@@ -47,11 +66,68 @@ const responseSchema = z.object({
             ),
           })
           .nullable(),
+        tagProblemCounts: z
+          .object({
+            advanced: z.array(tagCountSchema),
+            intermediate: z.array(tagCountSchema),
+            fundamental: z.array(tagCountSchema),
+          })
+          .nullable()
+          .optional(),
       })
       .nullable(),
   }),
   errors: z.array(z.object({ message: z.string() })).optional(),
 });
+
+const recentQuery = `
+  query invariantRecentAc($username: String!, $limit: Int) {
+    recentAcSubmissionList(username: $username, limit: $limit) {
+      titleSlug
+      timestamp
+    }
+  }
+`;
+
+const recentSchema = z.object({
+  data: z.object({
+    recentAcSubmissionList: z
+      .array(z.object({ titleSlug: z.string(), timestamp: z.string() }))
+      .nullable(),
+  }),
+});
+
+/**
+ * Recently accepted submissions. LeetCode caps this at 20 regardless of the
+ * requested limit, so it confirms recent solves rather than reconstructing a
+ * full history.
+ */
+export async function fetchLeetCodeRecentSolves(
+  handle: string,
+): Promise<Array<{ problemKey: string; solvedAt: Date }>> {
+  const response = await fetchValidatedJson(
+    endpoint,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://leetcode.com",
+        referer: "https://leetcode.com/",
+      },
+      body: JSON.stringify({
+        query: recentQuery,
+        operationName: "invariantRecentAc",
+        variables: { username: handle, limit: 20 },
+      }),
+    },
+    { schema: recentSchema },
+  );
+
+  return (response.data.recentAcSubmissionList ?? []).map((entry) => ({
+    problemKey: entry.titleSlug,
+    solvedAt: new Date(Number(entry.timestamp) * 1_000),
+  }));
+}
 
 export async function fetchLeetCodeStats(handle: string): Promise<PlatformStats> {
   const response = await fetchValidatedJson(
@@ -85,6 +161,15 @@ export async function fetchLeetCodeStats(handle: string): Promise<PlatformStats>
   const hardSolved = counts.Hard ?? 0;
   const totalSolved = counts.All ?? easySolved + mediumSolved + hardSolved;
 
+  const tags = user.tagProblemCounts;
+  const solvedByTag = [
+    ...(tags?.fundamental ?? []),
+    ...(tags?.intermediate ?? []),
+    ...(tags?.advanced ?? []),
+  ]
+    .filter((tag) => tag.problemsSolved > 0)
+    .map((tag) => ({ tagSlug: tag.tagSlug, solved: tag.problemsSolved }));
+
   return {
     platform: Platform.LEETCODE,
     handle: user.username,
@@ -96,6 +181,7 @@ export async function fetchLeetCodeStats(handle: string): Promise<PlatformStats>
     rating: null,
     ranking: user.profile?.ranking ?? null,
     reputation: user.profile?.reputation ?? null,
+    solvedByTag,
     raw: {
       totalSolved,
       easySolved,
