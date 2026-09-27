@@ -39,4 +39,12 @@ client_secret_*.json
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts 
+next-env.d.ts
+
+# personal documents (resumes, unrelated docs) — do not commit
+resume*.tex
+resume*.pdf
+resume*_preview*.png
+*.docx
+esha_tandon_resume_nsut.pdf
+Tech_sample_nsut*.pdf 
